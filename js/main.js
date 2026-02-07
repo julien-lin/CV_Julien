@@ -3,9 +3,11 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  initScrollOptimized();
-  initHamburger();
+  initNavigation();
+  initScroll();
   initIntersectionObserver();
+  initSmoothScroll();
+  initHamburger();
   updateYearsFormateur();
   updateYearsFreelance();
   updateYearsDev();
@@ -13,75 +15,126 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * Optimized scroll handler - combines navigation + active section
- * Uses requestAnimationFrame + passive listener for better perf
+ * Navigation sticky avec scroll effect
  */
-function initScrollOptimized() {
+function initNavigation() {
   const navbar = document.querySelector(".navbar");
-  const sections = Array.from(document.querySelectorAll(".section[id]"));
-  const links = Array.from(document.querySelectorAll(".nav-link"));
-
-  let ticking = false;
-
-  const update = () => {
-    const y = window.scrollY;
-
-    // navbar shadow
-    if (navbar) navbar.classList.toggle("scrolled", y > 50);
-
-    // active section
-    let currentId = "";
-    for (const section of sections) {
-      if (y >= section.offsetTop - 200) currentId = section.id;
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > 50) {
+      navbar.classList.add("scrolled");
+    } else {
+      navbar.classList.remove("scrolled");
     }
-
-    for (const link of links) {
-      link.classList.toggle("active", link.hash.slice(1) === currentId);
-    }
-  };
-
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      update();
-      ticking = false;
-    });
-  };
-
-  window.addEventListener("scroll", onScroll, { passive: true });
-  update(); // init
+  });
 }
 
-// ...existing code...
+/**
+ * Hamburger menu mobile
+ */
+function initHamburger() {
+  const hamburger = document.querySelector(".hamburger");
+  const navMenu = document.querySelector(".nav-menu");
+  const navLinks = document.querySelectorAll(".nav-link");
 
-// ...existing code...
+  if (!hamburger) return;
 
-// ...existing code...
+  hamburger.addEventListener("click", () => {
+    const isExpanded = hamburger.getAttribute("aria-expanded") === "true";
+    hamburger.setAttribute("aria-expanded", !isExpanded);
+    navMenu.classList.toggle("active");
+  });
+
+  // Fermer au clic sur un lien
+  navLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+      navMenu.classList.remove("active");
+      hamburger.setAttribute("aria-expanded", "false");
+    });
+  });
+
+  // Fermer avec Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && navMenu.classList.contains("active")) {
+      navMenu.classList.remove("active");
+      hamburger.setAttribute("aria-expanded", "false");
+      hamburger.focus();
+    }
+  });
+}
+
+/**
+ * Smooth scroll pour ancres
+ */
+function initSmoothScroll() {
+  document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute("href"));
+      if (target) {
+        target.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    });
+  });
+}
+
+/**
+ * Scroll behavior pour mise en évidence des liens nav
+ */
+function initScroll() {
+  window.addEventListener("scroll", () => {
+    const sections = document.querySelectorAll(".section[id]");
+    const navLinks = document.querySelectorAll(".nav-link");
+
+    let current = "";
+    sections.forEach((section) => {
+      const sectionTop = section.offsetTop;
+      if (window.pageYOffset >= sectionTop - 200) {
+        current = section.getAttribute("id");
+      }
+    });
+
+    navLinks.forEach((link) => {
+      link.classList.remove("active");
+      if (link.getAttribute("href").slice(1) === current) {
+        link.classList.add("active");
+      }
+    });
+  });
+}
 
 /**
  * Intersection Observer pour animations au scroll
- * Utilise des classes CSS au lieu de styles inline pour meilleure perf
  */
 function initIntersectionObserver() {
-  const elements = document.querySelectorAll(
-    ".project-card, .education-card, .highlight-card, .skill-block, .timeline-content",
-  );
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: "0px 0px -100px 0px",
+  };
 
-  elements.forEach((el) => el.classList.add("reveal"));
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add("is-visible");
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = "1";
+        entry.target.style.transform = "translateY(0)";
         observer.unobserve(entry.target);
       }
-    },
-    { threshold: 0.1, rootMargin: "0px 0px -100px 0px" },
-  );
+    });
+  }, observerOptions);
 
-  elements.forEach((el) => observer.observe(el));
+  // Observer pour les cards
+  document
+    .querySelectorAll(
+      ".project-card, .education-card, .highlight-card, .skill-block, .timeline-content",
+    )
+    .forEach((element) => {
+      element.style.opacity = "0";
+      element.style.transform = "translateY(20px)";
+      element.style.transition = "opacity 0.6s ease, transform 0.6s ease";
+      observer.observe(element);
+    });
 }
 
 /**
